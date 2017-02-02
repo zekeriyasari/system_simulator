@@ -11,8 +11,8 @@ def lorenz(x, sigma=10.0, b=8.0 / 3.0, r=35.0):
     return np.array([xdot, ydot, zdot])
 
 
-def zero_func(x, t):
-    return np.zeros(len(x))
+def zero_func(t):
+    return np.zeros(default.dim)
 
 
 def get_x_state(x, t, c=np.diag([1, 0, 0])):
@@ -41,8 +41,8 @@ class System(object):
 
         self._rhs = self.compose(self._system_func, self._input_func)
         self._initials = initials
-        self._input = 0.0
-        self._output = 0.0
+        self._input = np.zeros(self._dim)
+        self._output = np.zeros(self._dim)
         self._state = initials
         self._t = 0.0
         self._t_clock = 0.0
@@ -53,7 +53,7 @@ class System(object):
     @staticmethod
     def compose(system_function, input_function):
         def composed(x, t):
-            return system_function(x) + input_function(x, t)
+            return system_function(x) + input_function(t)
 
         return composed
 
@@ -66,9 +66,6 @@ class System(object):
         assert callable(val), 'Expected {}'.format(callable.__name__) + 'but got {}'.format(type(val))
 
         sig = signature(val)
-        # assert len(sig.parameters.values()) == self._dim, \
-        #     'Expected {} arguments, but {} were given'.format(self._dim, len(sig.parameters.values()))
-
         for param in sig.parameters.values():
             if not param.kind == param.POSITIONAL_OR_KEYWORD:
                 raise TypeError('Expected positional parameters, got {}'.format(param.kind))
@@ -85,7 +82,7 @@ class System(object):
 
     def __call__(self, delta_t=default.t_step):
         # read the input at time t.
-        self._input = self._input_func(self._state, self._t)
+        self._input = self._input_func(self._t)
 
         # calculate the next state at time t + delta_t
         self._state = self.state_transition(self._t + delta_t, self._t, self._state)

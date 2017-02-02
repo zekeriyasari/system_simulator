@@ -12,6 +12,8 @@ class Defaults(object):
     t_sample = 0.001
     t_step = 0.01
     dim = 3
+    epsl = 0.1
+    epsh = 10.0
 
 default = Defaults()
 

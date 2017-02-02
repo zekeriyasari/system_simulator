@@ -14,7 +14,7 @@ class TestSystem(TestCase):
 
     def test_system_initialize(self):
         print('\nTest: {}.'.format(System.__name__) + '{}'.format(System.__call__.__name__))
-        self.sys = System()
+        self.sys = System(initials=np.zeros(default.dim))
         self.failUnless(isinstance(self.sys, System))
         self.failUnless(self.sys._dim == default.dim)
         self.failUnless(self.sys._type == CONTINUOUS_TIME)
@@ -35,13 +35,13 @@ class TestSystem(TestCase):
         def f(x):
             return 2 * x
 
-        def u(x, t):
+        def u(t):
             return x + t
 
         rhs = self.sys.compose(f, u)
         x = np.random.randn(self.sys._dim)
         t = np.random.randn()
-        self.failUnless(np.allclose(f(x) + u(x, t), rhs(x, t)))
+        self.failUnless(np.allclose(f(x) + u(t), rhs(x, t)))
         print('ok.')
 
     def test_input_func_setter(self):
@@ -79,7 +79,7 @@ class TestSystem(TestCase):
         self.failUnless(callable(self.sys._input_func))
         x = np.random.randn(self.sys._dim)
         t = np.random.rand()
-        self.failUnless(np.allclose(self.sys._system_func(x) + self.sys._input_func(x, t), self.sys._rhs(x, t)))
+        self.failUnless(np.allclose(self.sys._system_func(x) + self.sys._input_func(t), self.sys._rhs(x, t)))
         print('ok.')
 
     def test_call(self):
@@ -89,8 +89,8 @@ class TestSystem(TestCase):
         x0 = self.sys._initials
         t0 = self.sys._t
         tt = np.arange(t0, delta_t, default.t_sample)
-        self.failUnless(np.allclose(self.sys._input, zero_func(x0, t0)))
-        next_state = odeint(self.sys._rhs, x0, tt)
+        self.failUnless(np.allclose(self.sys._input, zero_func(t0)))
+        next_state = odeint(self.sys._rhs, x0, tt)[-1]
 
         self.sys()  # run the system for delta_t = default.t_step
 
