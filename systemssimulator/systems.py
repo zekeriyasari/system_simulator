@@ -26,7 +26,7 @@ class System(object):
                  system_func=lorenz,
                  input_func=zero_func,
                  output_func=get_x_state,
-                 initials=np.random.randn(default.dim),
+                 initials=None,  # if np.array is set as default, then all system objects have same initial conditions.
                  buffer_size=default.buffer_size):
         self._dim = dim
         self._type = system_type
@@ -40,10 +40,10 @@ class System(object):
         self._output_buffer = np.zeros((buffer_size, self._dim))
 
         self._rhs = self.compose(self._system_func, self._input_func)
-        self._initials = initials
+        self._initials = initials if initials is not None else np.random.randn(self._dim)
         self._input = np.zeros(self._dim)
         self._output = np.zeros(self._dim)
-        self._state = initials
+        self._state = self._initials
         self._t = 0.0
         self._t_clock = 0.0
         self._buffer_index = 0
