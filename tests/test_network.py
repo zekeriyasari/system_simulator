@@ -22,8 +22,8 @@ class TestNetwork(TestCase):
         net = Network()
         for i in range(2):
             self.failUnless(isinstance(net.nodes[i], System))
-        self.failUnless(np.allclose(net._c, np.array([[-1.0, 1.0], [1.0, -1.0]])))
-        self.failUnless(np.allclose(net.p, np.diag([1, 0, 0])))
+        self.failUnless(np.allclose(net._a, np.array([[0., -1.], [-1., 0.]])))
+        self.failUnless(np.allclose(net.p, np.diag([1., 0., 0.])))
         self.failUnless(net.eps == default.epsh)
         self.failUnless(net._node_dim == net.nodes[0]._dim)
         self.failUnless(net._node_num == 2)
@@ -43,70 +43,93 @@ class TestNetwork(TestCase):
         del net
         print('ok.')
 
-    def test_c_setter(self):
+    def test_a_setter(self):
         print('\nTest: {}.'.format(Network.__name__) + '{}'.format('c.setter'))
         net = Network()
         float_param = 1.0
         with self.assertRaises(TypeError):
-            net.c = float_param
+            net.a = float_param
         with self.assertRaises(ValueError):
-            net.c = np.arange(10, dtype=float)
+            net.a = np.arange(10, dtype=float)
         del net
         print('ok.')
 
     def test_change_link_strength(self):
         print('\nTest: {}.'.format(Network.__name__) + '{}'.format(Network.change_link_strength.__name__))
 
-        initial_coupling = np.array([[-4, 1, 1, 1, 1],
-                                     [1, -3, 1, 0, 1],
-                                     [1, 1, -3, 1, 0],
-                                     [1, 0, 1, -3, 1],
-                                     [1, 1, 0, 1, -3]], dtype=float)
-        net5 = Network(nodes=(System(), System(), System(), System(), System()), c=initial_coupling)
-        self.failUnless(np.allclose(net5._c, initial_coupling))
-        net5.change_link_strength((1, 4), 0.5)
-        modified_coupling = np.array([[-4, 1, 1, 1, 1],
-                                      [1, -3.5, 1, 0, 1.5],
-                                      [1, 1, -3, 1, 0],
-                                      [1, 0, 1, -3, 1],
-                                      [1, 1.5, 0, 1, -3.5]], dtype=float)
-        self.failUnless(np.allclose(net5._c, modified_coupling))
+        adjacency_matrix = np.array([[0., -1, -1, -1, -1],
+                                     [-1, 0., -1, 0, -1],
+                                     [-1, -1, 0., -1, 0],
+                                     [-1, 0, -1, 0., -1],
+                                     [-1, -1, 0, -1, 0.]])
+        system_nodes = tuple([System() for n in range(5)])
+        net5 = Network(nodes=system_nodes, a=adjacency_matrix)
+        self.failUnless(np.allclose(net5._a, adjacency_matrix))
+        net5.change_link_strength((1, 4), -2.)
+        modified_adjacency_matrix = np.array([[0., -1, -1, -1, -1],
+                                              [-1, 0., -1, 0, -2],
+                                              [-1, -1, 0., -1, 0],
+                                              [-1, 0, -1, 0., -1],
+                                              [-1, -2, 0, -1, 0.]])
+        self.failUnless(np.allclose(net5._a, modified_adjacency_matrix))
+        modified_coupling_matrix = np.array([[1., -0.25, -0.25, -0.25, -0.25],
+                                             [-0.25, 1., -0.25, 0., -0.5],
+                                             [-1. / 3., -1. / 3., 1., -1. / 3., 0],
+                                             [-1. / 3., 0., -1. / 3., 1., -1. / 3.],
+                                             [-1. / 4., -2. / 4., 0, -1. / 4., 1.]])
+        self.failUnless(np.allclose(net5._c, modified_coupling_matrix))
         del net5
         print('ok.')
 
     def test_remove_link(self):
         print('\nTest: {}.'.format(Network.__name__) + '{}'.format(Network.remove_link.__name__))
-        initial_coupling = np.array([[-4, 1, 1, 1, 1],
-                                     [1, -3, 1, 0, 1],
-                                     [1, 1, -3, 1, 0],
-                                     [1, 0, 1, -3, 1],
-                                     [1, 1, 0, 1, -3]], dtype=float)
-        net5 = Network(nodes=(System(), System(), System(), System(), System()), c=initial_coupling)
-        net5.remove_link((0, 2))
-        modified_coupling = np.array([[-3, 1, 0, 1, 1],
-                                      [1, -3, 1, 0, 1],
-                                      [0, 1, -2, 1, 0],
-                                      [1, 0, 1, -3, 1],
-                                      [1, 1, 0, 1, -3]], dtype=float)
-        self.failUnless(np.allclose(net5._c, modified_coupling))
+        adjacency_matrix = np.array([[0., -1, -1, -1, -1],
+                                     [-1, 0., -1, 0, -1],
+                                     [-1, -1, 0., -1, 0],
+                                     [-1, 0, -1, 0., -1],
+                                     [-1, -1, 0, -1, 0.]])
+        system_nodes = tuple([System() for n in range(5)])
+        net5 = Network(nodes=system_nodes, a=adjacency_matrix)
+        self.failUnless(np.allclose(net5._a, adjacency_matrix))
+        net5.remove_link((1, 4))
+        modified_adjacency_matrix = np.array([[0., -1, -1, -1, -1],
+                                              [-1, 0., -1, 0, 0.],
+                                              [-1, -1, 0., -1, 0],
+                                              [-1, 0, -1, 0., -1],
+                                              [-1, -0., 0, -1, 0.]])
+        self.failUnless(np.allclose(net5._a, modified_adjacency_matrix))
+        modified_coupling_matrix = np.array([[1., -0.25, -0.25, -0.25, -0.25],
+                                             [-0.5, 1., -0.5, 0., 0.],
+                                             [-1. / 3., -1. / 3., 1., -1. / 3., 0],
+                                             [-1. / 3., 0., -1. / 3., 1., -1. / 3.],
+                                             [-1. / 2., 0., 0, -1. / 2., 1.]])
+        self.failUnless(np.allclose(net5._c, modified_coupling_matrix))
         del net5
         print('ok.')
 
     def test_add_link(self):
         print('\nTest: {}.'.format(Network.__name__) + '{}'.format(Network.add_link.__name__))
-        initial_coupling = np.array([[-4, 1, 1, 1, 1],
-                                     [1, -3, 1, 0, 1],
-                                     [1, 1, -3, 1, 0],
-                                     [1, 0, 1, -3, 1],
-                                     [1, 1, 0, 1, -3]], dtype=float)
-        net5 = Network(nodes=(System(), System(), System(), System(), System()), c=initial_coupling)
+        adjacency_matrix = np.array([[0., -1, -1, -1, -1],
+                                     [-1, 0., -1, 0, -1],
+                                     [-1, -1, 0., -1, 0],
+                                     [-1, 0, -1, 0., -1],
+                                     [-1, -1, 0, -1, 0.]])
+        system_nodes = tuple([System() for n in range(5)])
+        net5 = Network(nodes=system_nodes, a=adjacency_matrix)
+        self.failUnless(np.allclose(net5._a, adjacency_matrix))
         net5.add_link((1, 3))
-        modified_coupling = np.array([[-4, 1, 1, 1, 1],
-                                      [1, -4, 1, 1, 1],
-                                      [1, 1, -3, 1, 0],
-                                      [1, 1, 1, -4, 1],
-                                      [1, 1, 0, 1, -3]], dtype=float)
-        self.failUnless(np.allclose(net5._c, modified_coupling))
+        modified_adjacency_matrix = np.array([[0., -1, -1, -1, -1],
+                                              [-1, 0., -1, -1, -1],
+                                              [-1, -1, 0., -1, 0],
+                                              [-1, -1, -1, 0., -1],
+                                              [-1, -1, 0, -1, 0.]])
+        self.failUnless(np.allclose(net5._a, modified_adjacency_matrix))
+        modified_coupling_matrix = np.array([[1., -1 / 4, -1 / 4, -1 / 4, -1 / 4],
+                                             [-1 / 4, 1., -1 / 4, -1 / 4, -1 / 4],
+                                             [-1 / 3, -1 / 3, 1., -1 / 3, 0],
+                                             [-1 / 4, -1 / 4, -1 / 4, 1., -1 / 4],
+                                             [-1 / 3, -1 / 3, 0, -1 / 3, 1.]])
+        self.failUnless(np.allclose(net5._c, modified_coupling_matrix))
 
         with self.assertRaises(IndexError):
             net5.add_link((0, 1))
@@ -115,19 +138,27 @@ class TestNetwork(TestCase):
 
     def test_rewire_link(self):
         print('\nTest: {}.'.format(Network.__name__) + '{}'.format(Network.rewire_link.__name__))
-        initial_coupling = np.array([[-4, 1, 1, 1, 1],
-                                     [1, -3, 1, 0, 1],
-                                     [1, 1, -3, 1, 0],
-                                     [1, 0, 1, -3, 1],
-                                     [1, 1, 0, 1, -3]], dtype=float)
-        net5 = Network(nodes=(System(), System(), System(), System(), System()), c=initial_coupling)
+        adjacency_matrix = np.array([[0., -1, -1, -1, -1],
+                                     [-1, 0., -1, 0, -1],
+                                     [-1, -1, 0., -1, 0],
+                                     [-1, 0, -1, 0., -1],
+                                     [-1, -1, 0, -1, 0.]])
+        system_nodes = tuple([System() for n in range(5)])
+        net5 = Network(nodes=system_nodes, a=adjacency_matrix)
+        self.failUnless(np.allclose(net5._a, adjacency_matrix))
         net5.rewire_link((1, 4), (2, 4))
-        modified_coupling = np.array([[-4, 1, 1, 1, 1],
-                                      [1, -2, 1, 0, 0],
-                                      [1, 1, -4, 1, 1],
-                                      [1, 0, 1, -3, 1],
-                                      [1, 0, 1, 1, -3]], dtype=float)
-        self.failUnless(np.allclose(net5._c, modified_coupling))
+        modified_adjacency_matrix = np.array([[0., -1, -1, -1, -1],
+                                              [-1, 0., -1, 0, 0.],
+                                              [-1, -1, 0., -1, -1.],
+                                              [-1, 0, -1, 0., -1],
+                                              [-1, 0., -1., -1, 0.]])
+        self.failUnless(np.allclose(net5._a, modified_adjacency_matrix))
+        modified_coupling_matrix = np.array([[1., -1/4, -1/4, -1/4, -1/4],
+                                              [-1/2, 1., -1/2, 0, 0.],
+                                              [-1/4, -1/4, 1., -1/4, -1./4],
+                                              [-1/3, 0, -1/3, 1., -1/3],
+                                              [-1/3, 0., -1/3, -1/3, 1.]])
+        self.failUnless(np.allclose(net5._c, modified_coupling_matrix))
         del net5
         print('ok.')
 

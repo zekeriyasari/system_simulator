@@ -20,18 +20,19 @@ def check_parameter_type(param, expected_type):
 class Network(object):
     def __init__(self,
                  nodes=(System(), System()),
-                 c=np.array([[-1.0, 1.0], [1.0, -1.0]]),
-                 p=np.diag([1.0, 0.0, 0.0]),
+                 a=np.array([[0., -1.], [-1., 0]]),
+                 p=np.diag([1., 0., 0.]),
                  eps=default.epsh):
         self._nodes = None
-        self._c = None
+        self._a = None
         self._p = None
         self._eps = None
 
         self.nodes = nodes
         self._node_dim = self.nodes[0]._dim
         self._node_num = len(self.nodes)
-        self.c = c
+        self._c = np.zeros((self._node_num, self._node_num))
+        self.a = a
         self.p = p
         self.eps = eps
 
@@ -64,16 +65,30 @@ class Network(object):
         self._nodes = nodes
 
     @property
-    def c(self):
-        return self._c
+    def a(self):
+        return self._a
 
-    @c.setter
-    def c(self, val):
+    @a.setter
+    def a(self, val):
         check_parameter_type(val, np.ndarray)
         assert val.dtype == 'float', 'Expected {} entries, got {} entries'.format(float.__name__, val.dtype)
         if not val.shape == (self._node_num, self._node_num):
             raise ValueError('Expected shape {}, got shape{}'.format((self._node_num, self._node_num), val.shape))
-        self._c = val
+        if not np.allclose(val.diagonal(), np.zeros(self._node_num)):
+            raise ValueError('Matrix must have all-zero diagonal')
+        if not (val <= 0.).all():
+            raise ValueError('Matrix must have non-positive entries')
+        self._a = val
+        self.coupling_from_adjacency()
+
+    def coupling_from_adjacency(self):
+        """Create diagonalizes coupling matrix from adjacency matrix"""
+        self._c = np.copy(self._a)
+        if (self._c == 0.).all():
+            return
+        for i in range(self._a.shape[0]):
+            self._c[i, i] = -sum(self._a[i])
+            self._c[i] /= self._c[i, i]
 
     @property
     def p(self):
@@ -98,44 +113,40 @@ class Network(object):
             raise ValueError('Coupling strength must be positive')
         self._eps = val
 
-    def diagonalize_c(self):
-        for i in range(self._c.shape[0]):
-            self._c[i] /= self._c[i, i]
-
-    def change_link_strength(self, link, weight_update):
-        check_parameter_type(weight_update, numbers.Number)
+    def change_link_strength(self, link, weight):
+        check_parameter_type(weight, numbers.Number)
+        if not weight <= 0.0:
+            raise ValueError('Weight must be non-positive')
         check_parameter_type(link, tuple)
 
         i, j = link
-        # update off-diagonal entries of self._c.
-        self._c[i, j] += weight_update
-        self._c[j, i] += weight_update
+        # update the adjacency matrix
+        self._a[i, j] = weight
+        self._a[j, i] = weight
 
-        # update diagonal entries of self._c, since row sum of self._c must be 0.
-        self._c[i, i] -= weight_update
-        self._c[j, j] -= weight_update
+        # update the coupling matrix
+        self.coupling_from_adjacency()
 
     def remove_link(self, link):
         check_parameter_type(link, tuple)
         i, j = link
-        weight = self.c[i, j]
+        weight = self._a[i, j]
 
-        # update off-diagonal entries of self._c.
-        self.c[i, j] = 0.
-        self.c[j, i] = 0.
+        # update the adjacency matrix
+        self._a[i, j] = 0.
+        self._a[j, i] = 0.
 
-        # update diagonal entries of self._c, since row sum of self._c must be 0.
-        self.c[i, i] += weight
-        self.c[j, j] += weight
+        # update the coupling matrix
+        self.coupling_from_adjacency()
 
-    def add_link(self, link, weight=1.0):
+    def add_link(self, link, weight=-1.0):
         check_parameter_type(link, tuple)
         i, j = link
 
         if not (self._c[i, j] == 0 and self._c[j, i] == 0):
             raise IndexError('Link {} already exist'.format(link))
 
-        self.change_link_strength(link, weight_update=weight)
+        self.change_link_strength(link, weight=weight)
 
     def rewire_link(self, link_remove, link_add):
         check_parameter_type(link_remove, tuple)
@@ -166,7 +177,7 @@ class Network(object):
 
     def set_network_input_func(self):
         def input_func(t):
-            return self.eps * np.kron(self._c, self._p).dot(self._network_state)
+            return -self.eps * np.kron(self._c, self._p).dot(self._network_state)
 
         return input_func
 
