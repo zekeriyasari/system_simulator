@@ -16,6 +16,7 @@ def coupling_from_adjacency(matrix):
         matrix[i, i] = -sum(matrix[i])
     return matrix
 
+
 print(coupling_from_adjacency(a))
 
 # c0 = np.array([[4., -1., -1., -1., -1.],
