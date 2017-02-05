@@ -70,7 +70,7 @@ class Network(object):
     @c.setter
     def c(self, val):
         check_parameter_type(val, np.ndarray)
-        assert val.dtype == 'float', 'Expected {} entries, got {}'.format(float.__name__, val.dtype)
+        assert val.dtype == 'float', 'Expected {} entries, got {} entries'.format(float.__name__, val.dtype)
         if not val.shape == (self._node_num, self._node_num):
             raise ValueError('Expected shape {}, got shape{}'.format((self._node_num, self._node_num), val.shape))
         self._c = val
@@ -97,6 +97,10 @@ class Network(object):
         if not val >= 0.0:
             raise ValueError('Coupling strength must be positive')
         self._eps = val
+
+    def diagonalize_c(self):
+        for i in range(self._c.shape[0]):
+            self._c[i] /= self._c[i, i]
 
     def change_link_strength(self, link, weight_update):
         check_parameter_type(weight_update, numbers.Number)

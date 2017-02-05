@@ -221,5 +221,3 @@ class TestNetwork(TestCase):
 
         self.failUnless(np.allclose(net1._network_state, next_state))
         print('ok')
-
-
