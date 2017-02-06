@@ -88,7 +88,7 @@ class Network(object):
             return
         for i in range(self._a.shape[0]):
             self._c[i, i] = -sum(self._a[i])
-            self._c[i] /= self._c[i, i]
+            # self._c[i] /= self._c[i, i]
 
     @property
     def p(self):
